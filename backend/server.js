@@ -49,7 +49,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('send-message', (data) => {
-    io.to(`chat-${data.chatId}`).emit('receive-message', data);
+    socket.broadcast.to(`chat-${data.chatId}`).emit('receive-message', data);
   });
 
   socket.on('typing', (data) => {

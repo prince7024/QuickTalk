@@ -10,9 +10,9 @@ export const MessageBubble = ({ message, isOwn, senderName }) => {
   };
 
   return (
-    <div className={`flex ${isOwn ? 'justify-end' : 'justify-start'} mb-4`}>
+    <div className={`flex ${isOwn ? 'justify-end' : 'justify-start'} mb-3 px-2`}>
       <div
-        className={`max-w-xs lg:max-w-md px-4 py-3 rounded-lg ${
+        className={`max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg px-4 py-2 rounded-lg break-words ${
           isOwn
             ? 'bg-blue-500 text-white rounded-br-none'
             : 'bg-gray-200 text-gray-900 rounded-bl-none'
@@ -32,7 +32,7 @@ export const MessageBubble = ({ message, isOwn, senderName }) => {
           />
         )}
         
-        <p className="break-words">{message.content}</p>
+        <p className="break-words whitespace-pre-wrap text-sm">{message.content}</p>
         
         <p className={`text-xs mt-1 ${isOwn ? 'text-blue-100' : 'text-gray-500'}`}>
           {formatTime(message.createdAt)}

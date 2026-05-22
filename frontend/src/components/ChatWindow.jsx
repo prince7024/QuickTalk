@@ -28,29 +28,33 @@ export const ChatWindow = ({ chat, currentUser, onSendMessage }) => {
   }, [chat]);
 
   useEffect(() => {
-    socket.on('receive-message', (data) => {
+    const handleReceiveMessage = (data) => {
       if (data.chatId === chat?._id) {
         setMessages(prev => [...prev, data]);
       }
-    });
+    };
 
-    socket.on('user-typing', (data) => {
+    const handleUserTyping = (data) => {
       if (data.userId !== currentUser?.id) {
         setTypingUsers(prev => {
           if (prev.some(u => u.userId === data.userId)) return prev;
           return [...prev, data];
         });
       }
-    });
+    };
 
-    socket.on('user-stop-typing', (data) => {
+    const handleUserStopTyping = (data) => {
       setTypingUsers(prev => prev.filter(u => u.userId !== data.userId));
-    });
+    };
+
+    socket.on('receive-message', handleReceiveMessage);
+    socket.on('user-typing', handleUserTyping);
+    socket.on('user-stop-typing', handleUserStopTyping);
 
     return () => {
-      socket.off('receive-message');
-      socket.off('user-typing');
-      socket.off('user-stop-typing');
+      socket.off('receive-message', handleReceiveMessage);
+      socket.off('user-typing', handleUserTyping);
+      socket.off('user-stop-typing', handleUserStopTyping);
     };
   }, [chat, currentUser]);
 
@@ -98,25 +102,23 @@ export const ChatWindow = ({ chat, currentUser, onSendMessage }) => {
     if (!inputValue.trim()) return;
 
     try {
-      const messageData = {
-        _id: Date.now().toString(),
-        sender: currentUser?.id,
-        chatId: chat._id,
-        content: inputValue,
-        imageUrl: null,
-        createdAt: new Date().toISOString()
-      };
-
-      setMessages(prev => [...prev, messageData]);
+      const currentInput = inputValue;
       setInputValue('');
-
-      socket.emit('send-message', messageData);
       socket.emit('stop-typing', {
         chatId: chat._id,
         userId: currentUser?.id
       });
 
-      await messageService.sendMessage(chat._id, inputValue);
+      const response = await messageService.sendMessage(chat._id, currentInput);
+      
+      if (response.data.success && response.data.message) {
+        setMessages(prev => [...prev, response.data.message]);
+        
+        socket.emit('send-message', {
+          ...response.data.message,
+          chatId: chat._id
+        });
+      }
     } catch (error) {
       console.error('Failed to send message:', error);
     }
@@ -144,14 +146,14 @@ export const ChatWindow = ({ chat, currentUser, onSendMessage }) => {
   }
 
   return (
-    <div className="flex-1 flex flex-col bg-white">
-      <div className="border-b p-4 bg-white shadow">
+    <div className="flex-1 flex flex-col bg-white overflow-hidden">
+      <div className="border-b p-4 bg-white shadow flex-shrink-0">
         <div className="flex items-center">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white">
+          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white flex-shrink-0">
             {chat.isGroupChat ? '👥' : getOtherUser()?.avatar?.charAt(0) || '👤'}
           </div>
-          <div className="flex-1 ml-3">
-            <h2 className="font-bold text-gray-900">
+          <div className="flex-1 ml-3 min-w-0">
+            <h2 className="font-bold text-gray-900 truncate">
               {chat.isGroupChat ? chat.groupName : getOtherUser()?.name}
             </h2>
             {!chat.isGroupChat && getOtherUser()?.isOnline && (
@@ -161,7 +163,7 @@ export const ChatWindow = ({ chat, currentUser, onSendMessage }) => {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-2">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden p-4 space-y-2 w-full">
         {loading ? (
           <p className="text-center text-gray-500">Loading messages...</p>
         ) : messages.length === 0 ? (
@@ -171,8 +173,8 @@ export const ChatWindow = ({ chat, currentUser, onSendMessage }) => {
             <MessageBubble
               key={message._id || index}
               message={message}
-              isOwn={message.sender === currentUser?.id}
-              senderName={chat.isGroupChat ? getSenderName(message.sender) : null}
+              isOwn={message.sender?._id === currentUserId || message.sender === currentUserId}
+              senderName={chat.isGroupChat ? getSenderName(message.sender?._id || message.sender) : null}
             />
           ))
         )}
@@ -193,17 +195,17 @@ export const ChatWindow = ({ chat, currentUser, onSendMessage }) => {
         <div ref={messagesEndRef} />
       </div>
 
-      <form onSubmit={handleSendMessage} className="border-t p-4 bg-white flex gap-2">
+      <form onSubmit={handleSendMessage} className="border-t p-4 bg-white flex gap-2 flex-shrink-0 w-full overflow-hidden">
         <input
           type="text"
           value={inputValue}
           onChange={handleInputChange}
           placeholder="Type a message..."
-          className="flex-1 border rounded-full px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="flex-1 min-w-0 border rounded-full px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
         <button
           type="submit"
-          className="bg-blue-500 hover:bg-blue-600 text-white rounded-full px-6 py-2 font-semibold transition-colors"
+          className="bg-blue-500 hover:bg-blue-600 text-white rounded-full px-4 py-2 sm:px-6 font-semibold transition-colors flex-shrink-0"
         >
           Send
         </button>
