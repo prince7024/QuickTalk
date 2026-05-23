@@ -1,13 +1,97 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { MoreVertical, Settings, LogOut, User } from 'lucide-react';
 import { chatService } from '../services/api';
 
-export const Sidebar = ({ chats, onSelectChat, currentUserId }) => {
+export const Sidebar = ({ chats, onSelectChat, currentUserId, currentUser, onLogout }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [groupName, setGroupName] = useState('');
   const [showCreateGroup, setShowCreateGroup] = useState(false);
   const [selectedUsers, setSelectedUsers] = useState([]);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const profileMenuRef = useRef(null);
+  const buttonRef = useRef(null);
+  const menuRef = useRef(null);
+  const [menuStyle, setMenuStyle] = useState({});
+  const [openUp, setOpenUp] = useState(false);
+
+  const userName = currentUser?.name || currentUser?.email || 'Anonymous';
+  const initials = userName
+    .split(' ')
+    .map((part) => part.charAt(0).toUpperCase())
+    .slice(0, 2)
+    .join('');
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target)) {
+        setShowProfileMenu(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (showProfileMenu) {
+        computeMenuPosition();
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [showProfileMenu]);
+
+  const computeMenuPosition = () => {
+    const btn = buttonRef.current;
+    const menu = menuRef.current;
+    if (!btn) return;
+
+    const btnRect = btn.getBoundingClientRect();
+    const menuHeight = menu?.offsetHeight || 160;
+    const menuWidth = menu?.offsetWidth || 176;
+
+    const spaceBelow = window.innerHeight - btnRect.bottom;
+    const spaceAbove = btnRect.top;
+
+    const preferUp = spaceBelow < menuHeight && spaceAbove > menuHeight;
+
+    const style = {
+      position: 'absolute',
+      minWidth: `${menuWidth}px`,
+      zIndex: 9999,
+    };
+
+    if (preferUp) {
+      style.bottom = 'calc(100% + 8px)';
+      style.top = 'auto';
+    } else {
+      style.top = 'calc(100% + 8px)';
+      style.bottom = 'auto';
+    }
+
+    // horizontal placement: prefer align right inside parent, but adjust if overflowing viewport
+    const parentRect = profileMenuRef.current?.getBoundingClientRect();
+    if (parentRect) {
+      const spaceRight = window.innerWidth - parentRect.right;
+      const spaceLeft = parentRect.left;
+      if (spaceRight < menuWidth && spaceLeft > menuWidth) {
+        style.right = '0';
+        style.left = 'auto';
+      } else {
+        style.left = '0';
+        style.right = 'auto';
+      }
+    } else {
+      style.right = '0';
+    }
+
+    setMenuStyle(style);
+    setOpenUp(preferUp);
+  };
 
   const handleSearch = async (e) => {
     const query = e.target.value;
@@ -172,6 +256,84 @@ export const Sidebar = ({ chats, onSelectChat, currentUserId }) => {
             </div>
           ))
         )}
+      </div>
+
+      <div className="border-t bg-white p-4 sticky bottom-0 z-10">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-violet-500 to-sky-500 flex items-center justify-center text-white font-semibold text-base">
+              {initials}
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-gray-900 truncate">{userName}</p>
+              <div className="flex items-center gap-2 text-xs text-gray-500">
+                <span className="w-2 h-2 rounded-full bg-green-500 inline-block" />
+                <span>Online</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="relative" ref={profileMenuRef}>
+            <button
+              type="button"
+              ref={buttonRef}
+              onClick={() => {
+                const next = !showProfileMenu;
+                setShowProfileMenu(next);
+                if (next) {
+                  // compute placement after open
+                  setTimeout(() => computeMenuPosition(), 0);
+                }
+              }}
+              className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+              aria-label="Open profile menu"
+            >
+              <MoreVertical className="w-5 h-5 text-gray-600" />
+            </button>
+
+            {showProfileMenu && (
+              <div
+                ref={menuRef}
+                style={menuStyle}
+                className={`bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden text-sm ${openUp ? 'origin-bottom-right' : 'origin-top-right'}`}
+              >
+                <button
+                  type="button"
+                  onClick={() => setShowProfileMenu(false)}
+                  className="w-full text-left px-4 py-3 hover:bg-gray-50 flex items-center gap-2 text-gray-700"
+                >
+                  <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 text-gray-600">
+                    <User className="w-4 h-4" />
+                  </span>
+                  Profile
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowProfileMenu(false)}
+                  className="w-full text-left px-4 py-3 hover:bg-gray-50 flex items-center gap-2 text-gray-700"
+                >
+                  <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 text-gray-600">
+                    <Settings className="w-4 h-4" />
+                  </span>
+                  Settings
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowProfileMenu(false);
+                    onLogout?.();
+                  }}
+                  className="w-full text-left px-4 py-3 hover:bg-gray-50 flex items-center gap-2 text-gray-700"
+                >
+                  <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-gray-100 text-gray-600">
+                    <LogOut className="w-4 h-4" />
+                  </span>
+                  Logout
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

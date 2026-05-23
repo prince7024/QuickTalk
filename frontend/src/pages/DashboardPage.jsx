@@ -70,15 +70,9 @@ export const DashboardPage = () => {
           chats={chats}
           onSelectChat={handleSelectChat}
           currentUserId={currentUser?.id}
+          currentUser={currentUser}
+          onLogout={handleLogout}
         />
-        <div className="p-4 border-t bg-white">
-          <button
-            onClick={handleLogout}
-            className="w-full bg-red-500 hover:bg-red-600 text-white py-2 rounded-lg font-medium transition-colors"
-          >
-            Logout
-          </button>
-        </div>
       </div>
 
       <div className="flex-1 flex flex-col">
@@ -114,6 +108,8 @@ export const DashboardPage = () => {
             chats={chats}
             onSelectChat={handleSelectChat}
             currentUserId={currentUser?.id}
+            currentUser={currentUser}
+            onLogout={handleLogout}
           />
         </div>
       </div>
